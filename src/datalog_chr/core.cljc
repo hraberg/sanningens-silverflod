@@ -24,6 +24,14 @@
          (reduce (fn [acc [[kw] clause]]
                    (assoc acc kw (vec clause))) {}))))
 
+(defn rule-map->position-rule [rule]
+  (let [position-map (fn [m]
+                       (mapv (fn [x]
+                               (zipmap (map (comp (partial keyword "chr") str) (range)) x)) m))]
+    (-> rule
+        (update-in [:take] position-map)
+        (update-in [:drop] position-map))))
+
 (defn build-rule [rule]
   (let [{:keys [then] :as rule} (rule->map rule)]
     (assoc rule :then
