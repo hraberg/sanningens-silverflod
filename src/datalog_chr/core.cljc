@@ -42,19 +42,21 @@
       [to-drop (some-> rhs (apply args))])))
 
 (defn add-tx [to-add]
-  (mapv (fn [entity id]
-          (assoc (cond->> entity
-                   (vector? entity) (apply hash-map)) :db/id (- (inc id)))) to-add (range)))
+  (map (fn [entity id]
+         (assoc (cond->> entity
+                  (vector? entity) (apply hash-map))
+                :db/id (- (inc id))))
+       to-add (range)))
 
 (defn retract-tx [to-drop]
-  (mapv #(vector :db.fn/retractEntity %)
-        (remove nil? to-drop)))
+  (for [id to-drop]
+    [:db.fn/retractEntity id]))
 
 (defn rule->executable-rule [rule]
   (let [{:keys [take drop when then]} (build-rule rule)
         head (concat take drop)
-        head-vars (mapv (comp symbol (partial str "?"))
-                        (range (count head)))]
+        head-vars (map (comp symbol (partial str "?"))
+                       (range (count head)))]
     {:lhs (vec (concat [:find (vec (concat (cc/drop (count take) head-vars)
                                            (-> then meta :vars)))]
                        [:where]
@@ -77,6 +79,7 @@
           (recur (or rules (shuffle all-rules)) (when rules
                                                   chages)))))))
 
+
 (def gcd-rules '[{:drop [[:gcd 0]]}
 
                  {:take [[:gcd ?n]]
@@ -85,6 +88,22 @@
                          [(pos? ?n)]]
                   :then [[:gcd (- ?m ?n)]]}])
 
-(doto (d/create-conn)
-  (d/transact! (add-tx [{:gcd 9} {:gcd 6} {:gcd 3}]))
-  (run gcd-rules))
+(prn @(doto (d/create-conn)
+        (d/transact! (add-tx [[:gcd 9] [:gcd 6] [:gcd 3]]))
+        (run gcd-rules)))
+
+(def prime-rules '[{:take [[:prime ?i]]
+                    :drop [[:prime ?j]]
+                    :when [[(mod ?j ?i) ?mod]
+                           [(zero? ?mod)]]}
+
+                   {:drop [[:upto 1]]}
+
+                   {:drop [[:upto ?n]]
+                    :when [[(> ?n 1)]]
+                    :then [[:prime ?n]
+                           [:upto (dec ?n)]]}])
+
+(prn @(doto (d/create-conn)
+        (d/transact! (add-tx [[:upto 7]]))
+        (run prime-rules)))
