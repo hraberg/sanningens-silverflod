@@ -29,15 +29,15 @@
            (cond-> then
              (not (fn? then)) (some-> compile-rhs)))))
 
-(defn format-rule [{:keys [take drop then] when' :when}]
+(defn format-rule [{:keys [take drop then when]}]
   (vec (concat take
-               (when (and take drop)
+               (cc/when (and take drop)
                  ['\\])
                drop
                [(if-not drop
                   '==>
                   '<=>)]
-               (some-> when' (concat ['|]))
+               (some-> when (concat ['|]))
                (condp some [then]
                  vector? then
                  nil? [true]
