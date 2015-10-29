@@ -129,3 +129,13 @@
      (predicate-values :prime)
      (= #{[7] [5] [3] [2]})
      assert)
+
+(def fib-rules '[[:take
+                  [:upto ?max]
+                  [:fib ?a ?av]
+                  [:fib ?b ?bv]
+                  :when
+                  [(inc ?a) ?b]
+                  [(< ?b ?max)]
+                  :then
+                  [:fib (inc b) (+ ?av ?bv)]]])
