@@ -17,14 +17,15 @@
         src `(fn [~@vars] ~rhs)]
     (with-meta (eval src) {:src src :vars vars})))
 
-(defn flat-rule->map [rule]
-  (->> (partition 2 (partition-by keyword? rule))
-       (reduce (fn [acc [[kw] clause]]
-                 (assoc acc kw (vec clause))) {})))
+(defn rule->map [rule]
+  (if (map? rule)
+    rule
+    (->> (partition 2 (partition-by keyword? rule))
+         (reduce (fn [acc [[kw] clause]]
+                   (assoc acc kw (vec clause))) {}))))
 
 (defn build-rule [rule]
-  (let [{:keys [then] :as rule} (cond->> rule
-                                  (sequential? rule) flat-rule->map)]
+  (let [{:keys [then] :as rule} (rule->map rule)]
     (assoc rule :then
            (cond-> then
              (not (fn? then)) (some-> compile-rhs)))))
