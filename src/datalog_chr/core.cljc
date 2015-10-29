@@ -79,6 +79,15 @@
           (recur (or rules (shuffle all-rules)) (when rules
                                                   chages)))))))
 
+(defn run-once [rules wm]
+  @(doto (d/create-conn)
+     (d/transact! (add-tx wm))
+     (run rules)))
+
+(defn predicate-values [pred conn]
+  (d/q '[:find ?x :in $ ?pred
+         :where [_ ?pred ?x]]
+       conn pred))
 
 (def gcd-rules '[{:drop [[:gcd 0]]}
 
@@ -88,9 +97,10 @@
                          [(pos? ?n)]]
                   :then [[:gcd (- ?m ?n)]]}])
 
-(prn @(doto (d/create-conn)
-        (d/transact! (add-tx [[:gcd 9] [:gcd 6] [:gcd 3]]))
-        (run gcd-rules)))
+(->> (run-once gcd-rules [[:gcd 9] [:gcd 6] [:gcd 3]])
+     (predicate-values :gcd)
+     (= #{[3]})
+     assert)
 
 (def prime-rules '[{:take [[:prime ?i]]
                     :drop [[:prime ?j]]
@@ -104,6 +114,7 @@
                     :then [[:prime ?n]
                            [:upto (dec ?n)]]}])
 
-(prn @(doto (d/create-conn)
-        (d/transact! (add-tx [[:upto 7]]))
-        (run prime-rules)))
+(->> (run-once prime-rules [[:upto 7]])
+     (predicate-values :prime)
+     (= #{[7] [5] [3] [2]})
+     assert)
