@@ -17,10 +17,17 @@
         src `(fn [~@vars] ~rhs)]
     (with-meta (eval src) {:src src :vars vars})))
 
-(defn build-rule [{:keys [then] :as rule}]
-  (assoc rule :then
-         (cond-> then
-           (not (fn? then)) (some-> compile-rhs))))
+(defn flat-rule->map [rule]
+  (->> (partition 2 (partition-by keyword? rule))
+       (reduce (fn [acc [[kw] clause]]
+                 (assoc acc kw (vec clause))) {})))
+
+(defn build-rule [rule]
+  (let [{:keys [then] :as rule} (cond->> rule
+                                  (sequential? rule) flat-rule->map)]
+    (assoc rule :then
+           (cond-> then
+             (not (fn? then)) (some-> compile-rhs)))))
 
 (defn format-rule [{:keys [take drop then] when' :when}]
   (vec (concat take
@@ -89,30 +96,33 @@
          :where [_ ?pred ?x]]
        conn pred))
 
-(def gcd-rules '[{:drop [[:gcd 0]]}
+(def gcd-rules '[[:drop [:gcd 0]]
 
-                 {:take [[:gcd ?n]]
-                  :drop [[:gcd ?m]]
-                  :when [[(>= ?m ?n)]
-                         [(pos? ?n)]]
-                  :then [[:gcd (- ?m ?n)]]}])
+                 [:take [:gcd ?n]
+                  :drop [:gcd ?m]
+                  :when
+                  [(>= ?m ?n)]
+                  [(pos? ?n)]
+                  :then [:gcd (- ?m ?n)]]])
 
 (->> (run-once gcd-rules [[:gcd 9] [:gcd 6] [:gcd 3]])
      (predicate-values :gcd)
      (= #{[3]})
      assert)
 
-(def prime-rules '[{:take [[:prime ?i]]
-                    :drop [[:prime ?j]]
-                    :when [[(mod ?j ?i) ?mod]
-                           [(zero? ?mod)]]}
+(def prime-rules '[[:take [:prime ?i]
+                    :drop [:prime ?j]
+                    :when
+                    [(mod ?j ?i) ?mod]
+                    [(zero? ?mod)]]
 
-                   {:drop [[:upto 1]]}
+                   [:drop [:upto 1]]
 
-                   {:drop [[:upto ?n]]
-                    :when [[(> ?n 1)]]
-                    :then [[:prime ?n]
-                           [:upto (dec ?n)]]}])
+                   [:drop [:upto ?n]
+                    :when [(> ?n 1)]
+                    :then
+                    [:prime ?n]
+                    [:upto (dec ?n)]]])
 
 (->> (run-once prime-rules [[:upto 7]])
      (predicate-values :prime)
