@@ -46,12 +46,12 @@
     (cond-> (assoc rule :name (or name (d/squuid)))
       (sequential? then) (assoc :then (compile-rhs name then)))))
 
-(defn format-rule [{:keys [name take drop then when]}]
+(defn format-rule [{:keys [take drop then when] [name] :name}]
   (vec (concat (cc/when name
-                 [name (symbol "@")])
+                 [name \@])
                take
                (cc/when (and take drop)
-                 ['\\])
+                 [\\])
                drop
                [(if-not drop
                   '==>
@@ -136,56 +136,3 @@
   (->> (d/q '[:find [(pull ?e [*]) ...] :where [?e]] db)
        (map entity->constraint)
        set))
-
-(def gcd-rules '[[:drop [:gcd 0]]
-
-                 [:take [:gcd ?n]
-                  :drop [:gcd ?m]
-                  :when
-                  [(>= ?m ?n)]
-                  [(pos? ?n)]
-                  :then [:gcd (- ?m ?n)]]])
-
-(->> #{[:gcd 9] [:gcd 6] [:gcd 3]}
-     (run-once gcd-rules)
-     constraints
-     (= #{[:gcd 3]})
-     assert)
-
-(def prime-rules '[[:take [:prime ?i]
-                    :drop [:prime ?j]
-                    :when
-                    [(mod ?j ?i) ?mod]
-                    [(zero? ?mod)]]
-
-                   [:drop [:upto 1]]
-
-                   [:drop [:upto ?n]
-                    :when [(> ?n 1)]
-                    :then
-                    [:prime ?n]
-                    [:upto (dec ?n)]]])
-
-(->> #{[:upto 7]}
-     (run-once prime-rules)
-     constraints
-     (= #{[:prime 7] [:prime 5] [:prime 3] [:prime 2]})
-     assert)
-
-(def fib-rules '[[:name fib
-                  :take
-                  [:upto ?max]
-                  [:fib ?a ?av]
-                  [:fib ?b ?bv]
-                  :when
-                  [(inc ?a) ?x]
-                  [(= ?x ?b)]
-                  [(< ?b ?max)]
-                  :then
-                  [:fib (inc ?b) (+ ?av ?bv)]]])
-
-(->> #{[:upto 5] [:fib 1 1] [:fib 2 1]}
-     (run-once fib-rules)
-     constraints
-     (= #{[:upto 5] [:fib 5 5] [:fib 4 3] [:fib 3 2] [:fib 2 1] [:fib 1 1]})
-     assert)
