@@ -123,9 +123,9 @@
   ([rules wm]
    (run-once rules wm nil))
   ([rules wm max-runs]
-   @(doto (d/create-conn)
-      (d/transact! (add-tx wm))
-      (run rules max-runs))))
+   (doto (d/create-conn)
+     (d/transact! (add-tx wm))
+     (run rules max-runs))))
 
 (defn constraints [db]
   (->> (d/q '[:find [(pull ?e [*]) ...] :where [?e]] db)

@@ -40,7 +40,7 @@
             [:fib (inc ?b) (+ ?av ?bv)]]])
 
 (deftest basic-rule-firing
-  (are [rules wm expected] (= expected (chr/constraints (chr/run-once rules wm)))
+  (are [rules wm expected] (= expected (chr/constraints @(chr/run-once rules wm)))
 
     gcd #{[:gcd 9] [:gcd 6] [:gcd 3]}
     #{[:gcd 3]}
