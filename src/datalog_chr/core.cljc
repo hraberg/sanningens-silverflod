@@ -14,11 +14,11 @@
     (with-meta (eval src) {:src src :vars vars})))
 
 (defn rule->map [rule]
-  (cond-> rule
-    (not (map? rule)) (->> (partition-by keyword?)
-                           (partition 2)
-                           (reduce (fn [acc [[k] clause]]
-                                     (assoc acc k (vec clause))) {}))))
+  (->> (partition-by keyword? rule)
+       (partition 2)
+       (reduce (fn [acc [[k] clause]]
+                 (assoc acc k (cond-> (vec clause)
+                                (= :name k) first))) {})))
 
 (defn entity->constraint [e]
   (mapv e (sort (keys (dissoc e :db/id)))))
@@ -36,12 +36,7 @@
                          (entity->datoms (symbol (str "?" idx)))
                          (concat acc))) [])))
 
-(defn build-rule [rule]
-  (let [{:keys [then] [name] :name :as rule} (rule->map rule)]
-    (cond-> (assoc rule :name (or name (d/squuid)))
-      (sequential? then) (assoc :then (compile-rhs name then)))))
-
-(defn format-rule [{:keys [take drop then when] [name] :name}]
+(defn format-rule [{:keys [take drop then when name]}]
   (vec (concat (cc/when name
                  [name \@])
                take
@@ -71,14 +66,14 @@
 (defn constraints-not-tried? [tried-constraints & vars]
   (not (contains? tried-constraints (vec vars))))
 
-(defn rule->executable-rule [rule]
-  (let [{:keys [name take drop when then]} (build-rule rule)
-        head (vec (head-constraints->datoms (concat take drop)))
+(defn rule-map->executable-rule [{:keys [name take drop when then]}]
+  (let [head (vec (head-constraints->datoms (concat take drop)))
         head-vars (vec (distinct (map first head)))
-        not-tried-sym (gensym "?__constraints-not-tried?__")]
-    {:name name
+        not-tried-sym (gensym "?__constraints-not-tried?")
+        rhs (compile-rhs name then)]
+    {:name (or name (d/squuid))
      :lhs (vec (concat [:find (vec (concat head-vars
-                                           (-> then meta :vars)))]
+                                           (-> rhs meta :vars)))]
                        [:in '$ not-tried-sym]
                        [:where]
                        head
@@ -86,7 +81,7 @@
                        (cc/when (> (count head-vars) 1)
                          [[(cons 'not= head-vars)]])
                        when))
-     :rhs then
+     :rhs rhs
      :to-take (count take)
      :to-drop (count drop)}))
 
@@ -103,7 +98,7 @@
   ([conn all-rules]
    (run conn all-rules nil))
   ([conn all-rules max-runs]
-   (let [all-rules (mapv rule->executable-rule all-rules)]
+   (let [all-rules (mapv (comp rule-map->executable-rule rule->map) all-rules)]
      (loop [[{:keys [name] :as rule} & rules] (shuffle all-rules) changes nil runs 0 tried-constraints {}]
        (let [[to-take to-drop to-add :as result] (run-rule @conn rule (tried-constraints name #{}))
              txs (concat (add-tx to-add) (retract-tx to-drop))
