@@ -26,8 +26,11 @@
 (defn entity->constraint [e]
   (mapv e (sort (keys (dissoc e :db/id)))))
 
+(defn constraint-position-attribute [idx]
+  (keyword "chr" (str "at_" idx)))
+
 (defn constraint->entity [c]
-  (zipmap (map #(keyword "chr" (str "at_" %)) (range)) c))
+  (zipmap (map constraint-position-attribute (range)) c))
 
 (defn entity->datoms [id e]
   (mapv (comp vec (partial cons id)) e))
