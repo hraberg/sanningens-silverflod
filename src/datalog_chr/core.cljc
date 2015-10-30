@@ -99,9 +99,10 @@
   ;; Potentially we want to reify info about which combinations has
   ;; been tried and maybe even the rules into the db itself.
   (when-let [result (d/q lhs conn (partial not-tried? tried))]
-    (let [[to-take result] (split-at to-take result)
-          [to-drop args] (split-at to-drop result)]
-      [to-take to-drop (some-> rhs (apply args))])))
+    (let [head-count (+ to-take to-drop)]
+      [(subvec result 0 to-take)
+       (subvec result to-take head-count)
+       (some-> rhs (apply (subvec result head-count)))])))
 
 (defn run
   ([conn all-rules]
@@ -116,7 +117,7 @@
              {:keys [tx-data]} (d/transact! conn txs)
              changes (concat changes tx-data)]
          (if (or (and (nil? rules) (empty? changes))
-                 (and max-runs (= runs max-runs)))
+                 (= runs max-runs))
            conn
            (recur (or rules (shuffle all-rules))
                   (when rules
