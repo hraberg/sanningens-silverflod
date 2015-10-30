@@ -42,7 +42,7 @@
                          (entity->datoms (lvar idx))
                          (concat acc))) [])))
 
-(defn format-rule [{:keys [take drop then when name]}]
+(defn rule-map->chr [{:keys [take drop then when name]}]
   (vec (concat (cc/when name
                  [name \@])
                take
@@ -53,10 +53,9 @@
                   '==>
                   '<=>)]
                (some-> when (concat ['|]))
-               (condp some [then]
-                 vector? then
-                 nil? [true]
-                 (->> then meta :src last)))))
+               (if (vector? then)
+                 then
+                 [true]))))
 
 (defn add-tx [to-add]
   (map (fn [entity id]

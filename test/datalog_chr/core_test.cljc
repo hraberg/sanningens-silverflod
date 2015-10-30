@@ -52,7 +52,7 @@
     #{[:upto 5] [:fib 5 5] [:fib 4 3] [:fib 3 2] [:fib 2 1] [:fib 1 1]}))
 
 (deftest format-rules
-  (are [rules expected] (= expected (mapv (comp chr/format-rule chr/rule->map) rules))
+  (are [rules expected] (= expected (mapv (comp chr/rule-map->chr chr/parse-rule->rule-map) rules))
 
     gcd
     '[[[:gcd 0] <=> true]
