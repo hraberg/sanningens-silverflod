@@ -78,8 +78,8 @@
         head (position-constraints->datoms (concat take drop))
         head-vars (vec (distinct (map first head)))]
     {:name name
-     :lhs (vec (concat [:find (vec (concat head-vars
-                                           (-> then meta :vars)))]
+     :lhs (vec (concat (vec (cons :find (concat head-vars
+                                                (-> then meta :vars))))
                        [:where]
                        head
                        (cc/when (> (count head-vars) 1)
@@ -90,12 +90,16 @@
      :to-drop (count drop)}))
 
 (defn run-rule [conn {:keys [lhs rhs to-take to-drop]} tried]
-  (when-let [result (d/q lhs conn)]
-    (let [[to-take result] (split-at to-take result)
-          [to-drop args] (split-at to-drop result)]
-      ;; Rules should only fire once per set of constraints, this is a brute force version of that.
-      (when-not (tried (vec (concat to-take to-drop)))
-        [to-take to-drop (some-> rhs (apply args))]))))
+  ;; Rules should only fire once per set of constraints, this is a
+  ;; brute force version of that.  The results aren't lazy - it's a
+  ;; hash set. We need somehow get the tried set into the query itself
+  ;; and filter there. Potentially by reifying this info and maybe
+  ;; even the rules into the db itself.
+  (first (for [result (d/q lhs conn)
+               :let [[to-take result] (split-at to-take result)
+                     [to-drop args] (split-at to-drop result)]
+               :when (not (tried (vec (concat to-take to-drop))))]
+           [to-take to-drop (some-> rhs (apply args))])))
 
 (defn run
   ([conn all-rules]
@@ -167,9 +171,8 @@
 (def fib-rules '[[:name fib
                   :take
                   [:upto ?max]
-                  ;; TODO: this re-ordering shouldn't be necessary.
-                  [:fib ?b ?bv]
                   [:fib ?a ?av]
+                  [:fib ?b ?bv]
                   :when
                   [(inc ?a) ?x]
                   [(= ?x ?b)]
