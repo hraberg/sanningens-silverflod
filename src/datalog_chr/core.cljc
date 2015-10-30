@@ -60,7 +60,7 @@
                (condp some [then]
                  vector? then
                  nil? [true]
-                 (->> then meta :src (cc/drop 3))))))
+                 (->> then meta :src last)))))
 
 (defn add-tx [to-add]
   (map (fn [entity id]
