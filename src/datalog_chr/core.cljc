@@ -95,6 +95,12 @@
        (map entity->constraint)
        set))
 
+(defn ensure-constraints-exist [db head]
+  (when-let [missing (seq (for [constraint head
+                                :when (not (d/pull db '[:db/id] constraint))]
+                            constraint))]
+    (throw (ex-info "Missing constraints:" {:missing (vec missing)}))))
+
 (defn run-rule [db {:keys [lhs rhs to-take to-drop]} tried-constraints]
   ;; Potentially we want to reify info about which combinations has
   ;; been tried and maybe even the rules into the db itself.
@@ -111,7 +117,9 @@
    (let [all-rules (mapv (comp rule-map->executable-rule parse-rule->rule-map) all-rules)]
      (loop [[{:keys [name] :as rule} & rules] (shuffle all-rules) changes nil runs 0 tried-constraints {}]
        (let [{:keys [to-take to-drop to-add] :as result} (run-rule @conn rule (tried-constraints name #{}))
-             txs (concat (add-tx to-add) (retract-tx to-drop))
+             head (vec (concat to-take to-drop))
+             txs (concat [[:db.fn/call ensure-constraints-exist head]]
+                         (add-tx to-add) (retract-tx to-drop))
              {:keys [tx-data]} (d/transact! conn txs)
              changes (concat changes tx-data)]
          (if (or (and (nil? rules) (empty? changes))
@@ -122,7 +130,7 @@
                     changes)
                   (inc runs)
                   (cond-> tried-constraints
-                    result (update-in [name] (fnil conj #{}) (vec (concat to-take to-drop)))))))))))
+                    result (update-in [name] (fnil conj #{}) head)))))))))
 
 (defn run-once
   ([rules wm]
