@@ -77,7 +77,6 @@
   (let [{:keys [name take drop when then]} (build-rule rule)
         head (position-constraints->datoms (concat take drop))
         head-vars (vec (distinct (map first head)))]
-    ;; TODO: In flight attempt to filter out tried constraints.
     {:name name
      :lhs (vec (concat [:find (vec (concat head-vars
                                            (-> then meta :vars)))]
@@ -94,7 +93,9 @@
   (when-let [result (d/q lhs conn)]
     (let [[to-take result] (split-at to-take result)
           [to-drop args] (split-at to-drop result)]
-      [to-take to-drop (some-> rhs (apply args))])))
+      ;; Rules should only fire once per set of constraints, this is a brute force version of that.
+      (when-not (tried (vec (concat to-take to-drop)))
+        [to-take to-drop (some-> rhs (apply args))]))))
 
 (defn run
   ([conn all-rules]
@@ -102,7 +103,7 @@
   ([conn all-rules max-runs]
    (let [all-rules (map rule->executable-rule all-rules)]
      (loop [[{:keys [name] :as rule} & rules] (shuffle all-rules) changes nil runs 0 tried {}]
-       (let [[to-take to-drop to-add :as result] (run-rule @conn rule (tried name))
+       (let [[to-take to-drop to-add :as result] (run-rule @conn rule (tried name #{}))
              tried (cond-> tried
                      result (update-in [name] (fnil conj #{}) (vec (concat to-take to-drop))))
              txs (concat (add-tx to-add) (retract-tx to-drop))
@@ -166,8 +167,8 @@
 (def fib-rules '[[:name fib
                   :take
                   [:upto ?max]
+                  ;; TODO: this re-ordering shouldn't be necessary.
                   [:fib ?b ?bv]
-                  :drop ;; TODO: this drop shouldn't be necessary, rules should only fire once per set of constraints.
                   [:fib ?a ?av]
                   :when
                   [(inc ?a) ?x]
@@ -178,7 +179,7 @@
 
 (->> (run-once fib-rules #{[:upto 5] [:fib 1 1] [:fib 2 1]})
      constraints
-     (= #{[:upto 5] [:fib 5 5] [:fib 4 3]})
+     (= #{[:upto 5] [:fib 5 5] [:fib 4 3] [:fib 3 2] [:fib 2 1] [:fib 1 1]})
      assert)
 
 ;; http://chrjs.net/playground.html
