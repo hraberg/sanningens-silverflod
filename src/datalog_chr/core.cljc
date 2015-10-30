@@ -14,7 +14,7 @@
 
 (defn compile-rhs [name rhs]
   (let [vars (sort (mapcat extract-lvars rhs))
-        src `(~'fn ~(symbol (or name "rhs")) [~@vars] ~rhs)]
+        src `(~'fn ~(symbol (str (or name "rhs"))) [~@vars] ~rhs)]
     (with-meta (eval src) {:src src :vars vars})))
 
 (defn rule->map [rule]
@@ -42,8 +42,8 @@
        (reduce into [])))
 
 (defn build-rule [rule]
-  (let [{:keys [then] :as rule [name] :name} (rule->map rule)]
-    (cond-> (assoc rule :name (or name (str (d/squuid))))
+  (let [{:keys [then] [name] :name :as rule} (rule->map rule)]
+    (cond-> (assoc rule :name (or name (d/squuid)))
       (sequential? then) (assoc :then (compile-rhs name then)))))
 
 (defn format-rule [{:keys [name take drop then when]}]
@@ -76,9 +76,10 @@
 (defn rule->executable-rule [rule]
   (let [{:keys [name take drop when then]} (build-rule rule)
         head (position-constraints->datoms (concat take drop))
-        head-vars (distinct (map first head))]
+        head-vars (vec (distinct (map first head)))]
+    ;; TODO: In flight attempt to filter out tried constraints.
     {:name name
-     :lhs (vec (concat [:find (vec (concat (cc/drop (count take) head-vars)
+     :lhs (vec (concat [:find (vec (concat head-vars
                                            (-> then meta :vars)))]
                        [:where]
                        head
@@ -86,28 +87,35 @@
                          [[(cons 'not= head-vars)]])
                        when))
      :rhs then
+     :to-take (count take)
      :to-drop (count drop)}))
 
-(defn run-rule [conn {:keys [lhs rhs to-drop]}]
+(defn run-rule [conn {:keys [lhs rhs to-take to-drop]} tried]
   (when-let [result (d/q lhs conn)]
-    (let [[to-drop args] (split-at to-drop result)]
-      [to-drop (some-> rhs (apply args))])))
+    (let [[to-take result] (split-at to-take result)
+          [to-drop args] (split-at to-drop result)]
+      [to-take to-drop (some-> rhs (apply args))])))
 
 (defn run
   ([conn all-rules]
    (run conn all-rules nil))
   ([conn all-rules max-runs]
    (let [all-rules (map rule->executable-rule all-rules)]
-     (loop [[rule & rules] (shuffle all-rules) changes nil runs 0]
-       (let [[to-drop to-add] (run-rule @conn rule)
+     (loop [[{:keys [name] :as rule} & rules] (shuffle all-rules) changes nil runs 0 tried {}]
+       (let [[to-take to-drop to-add :as result] (run-rule @conn rule (tried name))
+             tried (cond-> tried
+                     result (update-in [name] (fnil conj #{}) (vec (concat to-take to-drop))))
              txs (concat (add-tx to-add) (retract-tx to-drop))
              {:keys [tx-data]} (d/transact! conn txs)
              changes (concat changes tx-data)]
          (if (or (and (nil? rules) (empty? changes))
                  (and max-runs (= runs max-runs)))
            conn
-           (recur (or rules (shuffle all-rules)) (when rules
-                                                   changes) (inc runs))))))))
+           (recur (or rules (shuffle all-rules))
+                  (when rules
+                    changes)
+                  (inc runs)
+                  tried)))))))
 
 (defn run-once
   ([rules wm]
