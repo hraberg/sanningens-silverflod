@@ -73,15 +73,21 @@
   (for [id to-drop]
     [:db.fn/retractEntity id]))
 
+(defn not-tried? [tried & vars]
+  (not (contains? tried (vec vars))))
+
 (defn rule->executable-rule [rule]
   (let [{:keys [name take drop when then]} (build-rule rule)
         head (position-constraints->datoms (concat take drop))
-        head-vars (vec (distinct (map first head)))]
+        head-vars (vec (distinct (map first head)))
+        not-tried?-sym (gensym "?__not-tried__")]
     {:name name
-     :lhs (vec (concat (vec (cons :find (concat head-vars
-                                                (-> then meta :vars))))
+     :lhs (vec (concat [:find (vec (concat head-vars
+                                           (-> then meta :vars)))]
+                       [:in '$ not-tried?-sym]
                        [:where]
                        head
+                       [[(cons not-tried?-sym head-vars)]]
                        (cc/when (> (count head-vars) 1)
                          [[(cons 'not= head-vars)]])
                        when))
@@ -90,16 +96,12 @@
      :to-drop (count drop)}))
 
 (defn run-rule [conn {:keys [lhs rhs to-take to-drop]} tried]
-  ;; Rules should only fire once per set of constraints, this is a
-  ;; brute force version of that.  The results aren't lazy - it's a
-  ;; hash set. We need somehow get the tried set into the query itself
-  ;; and filter there. Potentially by reifying this info and maybe
-  ;; even the rules into the db itself.
-  (first (for [result (d/q lhs conn)
-               :let [[to-take result] (split-at to-take result)
-                     [to-drop args] (split-at to-drop result)]
-               :when (not (tried (vec (concat to-take to-drop))))]
-           [to-take to-drop (some-> rhs (apply args))])))
+  ;; Potentially we want to reify info about which combinations has
+  ;; been tried and maybe even the rules into the db itself.
+  (when-let [result (d/q lhs conn (partial not-tried? tried))]
+    (let [[to-take result] (split-at to-take result)
+          [to-drop args] (split-at to-drop result)]
+      [to-take to-drop (some-> rhs (apply args))])))
 
 (defn run
   ([conn all-rules]
