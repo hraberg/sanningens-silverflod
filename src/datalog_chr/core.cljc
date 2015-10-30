@@ -9,16 +9,16 @@
   (set (filter lvar? (flatten x))))
 
 (defn compile-rhs [name rhs]
-  (let [vars (sort (mapcat extract-lvars rhs))
+  (let [vars (vec (sort (extract-lvars rhs)))
         src `(~'fn ~(symbol (str (or name "rhs"))) [~@vars] ~rhs)]
     (with-meta (eval src) {:src src :vars vars})))
 
 (defn rule->map [rule]
-  (if (map? rule)
-    rule
-    (->> (partition 2 (partition-by keyword? rule))
-         (reduce (fn [acc [[k] clause]]
-                   (assoc acc k (vec clause))) {}))))
+  (cond-> rule
+    (not (map? rule)) (->> (partition-by keyword?)
+                           (partition 2)
+                           (reduce (fn [acc [[k] clause]]
+                                     (assoc acc k (vec clause))) {}))))
 
 (defn entity->constraint [e]
   (mapv e (sort (keys (dissoc e :db/id)))))
@@ -30,12 +30,12 @@
   (mapv (comp vec (partial cons id)) e))
 
 (defn head-constraints->datoms [cs]
-  (->> cs
-       (map-indexed
-        (fn [idx c]
-          (->> (constraint->entity c)
-               (entity->datoms (symbol (str "?" idx))))))
-       (reduce into [])))
+  (->> (vec cs)
+       (reduce-kv (fn [acc idx c]
+                    (->> (constraint->entity c)
+                         (entity->datoms (symbol (str "?" idx)))
+                         (concat acc)))
+                  [])))
 
 (defn build-rule [rule]
   (let [{:keys [then] [name] :name :as rule} (rule->map rule)]
@@ -74,7 +74,7 @@
 
 (defn rule->executable-rule [rule]
   (let [{:keys [name take drop when then]} (build-rule rule)
-        head (head-constraints->datoms (concat take drop))
+        head (vec (head-constraints->datoms (concat take drop)))
         head-vars (vec (distinct (map first head)))
         not-tried-sym (gensym "?__constraints-not-tried?__")]
     {:name name
