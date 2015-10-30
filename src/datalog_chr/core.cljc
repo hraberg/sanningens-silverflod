@@ -5,6 +5,9 @@
 (defn lvar? [v]
   (and (symbol? v) (= \? (first (name v)))))
 
+(defn lvar [name]
+  (symbol (str \? name)))
+
 (defn extract-lvars [x]
   (set (filter lvar? (flatten x))))
 
@@ -33,7 +36,7 @@
   (->> (vec cs)
        (reduce-kv (fn [acc idx c]
                     (->> (constraint->entity c)
-                         (entity->datoms (symbol (str "?" idx)))
+                         (entity->datoms (lvar idx))
                          (concat acc))) [])))
 
 (defn format-rule [{:keys [take drop then when name]}]
@@ -69,7 +72,7 @@
 (defn rule-map->executable-rule [{:keys [name take drop when then]}]
   (let [head (vec (head-constraints->datoms (concat take drop)))
         head-vars (vec (distinct (map first head)))
-        not-tried-sym (gensym "?__constraints-not-tried?")
+        not-tried-sym (gensym (lvar "constraints-not-tried?"))
         rhs (compile-rhs name then)]
     {:name (or name (d/squuid))
      :lhs (vec (concat [:find (vec (concat head-vars
