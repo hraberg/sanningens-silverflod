@@ -34,8 +34,7 @@
        (reduce-kv (fn [acc idx c]
                     (->> (constraint->entity c)
                          (entity->datoms (symbol (str "?" idx)))
-                         (concat acc)))
-                  [])))
+                         (concat acc))) [])))
 
 (defn build-rule [rule]
   (let [{:keys [then] [name] :name :as rule} (rule->map rule)]
