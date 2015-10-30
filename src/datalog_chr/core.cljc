@@ -16,7 +16,7 @@
         src `(~'fn ~(symbol (str (or name "rhs"))) [~@vars] ~rhs)]
     (with-meta (eval src) {:src src :vars vars})))
 
-(defn rule->map [rule]
+(defn parse-rule->rule-map [rule]
   (->> (partition-by keyword? rule)
        (partition 2)
        (reduce (fn [acc [[k] clause]]
@@ -90,10 +90,15 @@
      :to-take (count take)
      :to-drop (count drop)}))
 
-(defn run-rule [conn {:keys [lhs rhs to-take to-drop]} tried-constraints]
+(defn constraints [db]
+  (->> (d/q '[:find [(pull ?e [*]) ...] :where [?e]] db)
+       (map entity->constraint)
+       set))
+
+(defn run-rule [db {:keys [lhs rhs to-take to-drop]} tried-constraints]
   ;; Potentially we want to reify info about which combinations has
   ;; been tried and maybe even the rules into the db itself.
-  (when-let [result (d/q lhs conn (partial constraints-not-tried? tried-constraints))]
+  (when-let [result (d/q lhs db (partial constraints-not-tried? tried-constraints))]
     (let [head-count (+ to-take to-drop)]
       {:to-take (subvec result 0 to-take)
        :to-drop (subvec result to-take head-count)
@@ -103,7 +108,7 @@
   ([conn all-rules]
    (run conn all-rules nil))
   ([conn all-rules max-runs]
-   (let [all-rules (mapv (comp rule-map->executable-rule rule->map) all-rules)]
+   (let [all-rules (mapv (comp rule-map->executable-rule parse-rule->rule-map) all-rules)]
      (loop [[{:keys [name] :as rule} & rules] (shuffle all-rules) changes nil runs 0 tried-constraints {}]
        (let [{:keys [to-take to-drop to-add] :as result} (run-rule @conn rule (tried-constraints name #{}))
              txs (concat (add-tx to-add) (retract-tx to-drop))
@@ -126,8 +131,3 @@
    (doto (d/create-conn)
      (d/transact! (add-tx wm))
      (run rules max-runs))))
-
-(defn constraints [db]
-  (->> (d/q '[:find [(pull ?e [*]) ...] :where [?e]] db)
-       (map entity->constraint)
-       set))
