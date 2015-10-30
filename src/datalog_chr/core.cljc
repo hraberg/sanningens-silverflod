@@ -146,7 +146,8 @@
                   [(pos? ?n)]
                   :then [:gcd (- ?m ?n)]]])
 
-(->> (run-once gcd-rules #{[:gcd 9] [:gcd 6] [:gcd 3]})
+(->> #{[:gcd 9] [:gcd 6] [:gcd 3]}
+     (run-once gcd-rules)
      constraints
      (= #{[:gcd 3]})
      assert)
@@ -165,7 +166,8 @@
                     [:prime ?n]
                     [:upto (dec ?n)]]])
 
-(->> (run-once prime-rules #{[:upto 7]})
+(->> #{[:upto 7]}
+     (run-once prime-rules)
      constraints
      (= #{[:prime 7] [:prime 5] [:prime 3] [:prime 2]})
      assert)
@@ -182,9 +184,8 @@
                   :then
                   [:fib (inc ?b) (+ ?av ?bv)]]])
 
-(->> (run-once fib-rules #{[:upto 5] [:fib 1 1] [:fib 2 1]})
+(->> #{[:upto 5] [:fib 1 1] [:fib 2 1]}
+     (run-once fib-rules)
      constraints
      (= #{[:upto 5] [:fib 5 5] [:fib 4 3] [:fib 3 2] [:fib 2 1] [:fib 1 1]})
      assert)
-
-;; http://chrjs.net/playground.html
