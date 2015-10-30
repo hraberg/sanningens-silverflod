@@ -24,19 +24,27 @@
          (reduce (fn [acc [[kw] clause]]
                    (assoc acc kw (vec clause))) {}))))
 
-(defn rule-map->position-rule [rule]
-  (let [position-map (fn [m]
-                       (mapv (fn [x]
-                               (zipmap (map (comp (partial keyword "chr") str) (range)) x)) m))]
-    (-> rule
-        (update-in [:take] position-map)
-        (update-in [:drop] position-map))))
+(defn entity->constraint [e]
+  (mapv e (sort (keys (dissoc e :db/id)))))
+
+(defn constraint->entity [c]
+  (zipmap (map #(keyword "chr" (str "at_" %)) (range)) c))
+
+(defn constraint->datoms [id c]
+  (mapv (comp vec (partial cons id))
+        (constraint->entity c)))
+
+(defn position-constraints->datoms [cs]
+  (->> cs
+       (map-indexed
+        (fn [idx c]
+          (constraint->datoms (symbol (str "?" idx)) c)))
+       (reduce into [])))
 
 (defn build-rule [rule]
   (let [{:keys [then] :as rule} (rule->map rule)]
-    (assoc rule :then
-           (cond-> then
-             (not (fn? then)) (some-> compile-rhs)))))
+    (cond-> rule
+      (sequential? then) (assoc :then (compile-rhs then)))))
 
 (defn format-rule [{:keys [take drop then when]}]
   (vec (concat take
@@ -60,7 +68,7 @@
 (defn add-tx [to-add]
   (map (fn [entity id]
          (assoc (cond->> entity
-                  (vector? entity) (apply hash-map))
+                  (vector? entity) constraint->entity)
                 :db/id (- (inc id))))
        to-add (range)))
 
@@ -70,13 +78,12 @@
 
 (defn rule->executable-rule [rule]
   (let [{:keys [take drop when then]} (build-rule rule)
-        head (concat take drop)
-        head-vars (map (comp symbol (partial str "?"))
-                       (range (count head)))]
+        head (position-constraints->datoms (concat take drop))
+        head-vars (distinct (map first head))]
     {:lhs (vec (concat [:find (vec (concat (cc/drop (count take) head-vars)
                                            (-> then meta :vars)))]
                        [:where]
-                       (map (comp vec cons) head-vars head)
+                       head
                        (cc/when (> (count head-vars) 1)
                          [[(cons 'not= head-vars)]])
                        when))
@@ -100,10 +107,10 @@
      (d/transact! (add-tx wm))
      (run rules)))
 
-(defn predicate-values [pred conn]
-  (d/q '[:find ?x :in $ ?pred
-         :where [_ ?pred ?x]]
-       conn pred))
+(defn constraints [db]
+  (->> (d/q '[:find [(pull ?e [*]) ...] :where [?e]] db)
+       (map entity->constraint)
+       set))
 
 (def gcd-rules '[[:drop [:gcd 0]]
 
@@ -115,8 +122,8 @@
                   :then [:gcd (- ?m ?n)]]])
 
 (->> (run-once gcd-rules [[:gcd 9] [:gcd 6] [:gcd 3]])
-     (predicate-values :gcd)
-     (= #{[3]})
+     constraints
+     (= #{[:gcd 3]})
      assert)
 
 (def prime-rules '[[:take [:prime ?i]
@@ -134,8 +141,8 @@
                     [:upto (dec ?n)]]])
 
 (->> (run-once prime-rules [[:upto 7]])
-     (predicate-values :prime)
-     (= #{[7] [5] [3] [2]})
+     constraints
+     (= #{[:prime 7] [:prime 5] [:prime 3] [:prime 2]})
      assert)
 
 (def fib-rules '[[:take
@@ -146,4 +153,4 @@
                   [(inc ?a) ?b]
                   [(< ?b ?max)]
                   :then
-                  [:fib (inc b) (+ ?av ?bv)]]])
+                  [:fib (inc ?b) (+ ?av ?bv)]]])
