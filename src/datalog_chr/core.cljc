@@ -1,16 +1,12 @@
 (ns datalog-chr.core
   (:require [clojure.core :as cc]
-            [clojure.walk :as w]
             [datascript.core :as d]))
 
 (defn lvar? [v]
   (and (symbol? v) (= \? (first (name v)))))
 
 (defn extract-lvars [x]
-  (let [v (volatile! #{})]
-    (w/postwalk #(when (lvar? %)
-                   (vswap! v conj %)) x)
-    @v))
+  (set (filter lvar? (flatten x))))
 
 (defn compile-rhs [name rhs]
   (let [vars (sort (mapcat extract-lvars rhs))
@@ -30,15 +26,15 @@
 (defn constraint->entity [c]
   (zipmap (map #(keyword "chr" (str "at_" %)) (range)) c))
 
-(defn constraint->datoms [id c]
-  (mapv (comp vec (partial cons id))
-        (constraint->entity c)))
+(defn entity->datoms [id e]
+  (mapv (comp vec (partial cons id)) e))
 
-(defn position-constraints->datoms [cs]
+(defn head-constraints->datoms [cs]
   (->> cs
        (map-indexed
         (fn [idx c]
-          (constraint->datoms (symbol (str "?" idx)) c)))
+          (->> (constraint->entity c)
+               (entity->datoms (symbol (str "?" idx))))))
        (reduce into [])))
 
 (defn build-rule [rule]
@@ -73,21 +69,21 @@
   (for [id to-drop]
     [:db.fn/retractEntity id]))
 
-(defn not-tried? [tried & vars]
-  (not (contains? tried (vec vars))))
+(defn constraints-not-tried? [tried-constraints & vars]
+  (not (contains? tried-constraints (vec vars))))
 
 (defn rule->executable-rule [rule]
   (let [{:keys [name take drop when then]} (build-rule rule)
-        head (position-constraints->datoms (concat take drop))
+        head (head-constraints->datoms (concat take drop))
         head-vars (vec (distinct (map first head)))
-        not-tried?-sym (gensym "?__not-tried__")]
+        not-tried-sym (gensym "?__constraints-not-tried?__")]
     {:name name
      :lhs (vec (concat [:find (vec (concat head-vars
                                            (-> then meta :vars)))]
-                       [:in '$ not-tried?-sym]
+                       [:in '$ not-tried-sym]
                        [:where]
                        head
-                       [[(cons not-tried?-sym head-vars)]]
+                       [[(cons not-tried-sym head-vars)]]
                        (cc/when (> (count head-vars) 1)
                          [[(cons 'not= head-vars)]])
                        when))
@@ -95,10 +91,10 @@
      :to-take (count take)
      :to-drop (count drop)}))
 
-(defn run-rule [conn {:keys [lhs rhs to-take to-drop]} tried]
+(defn run-rule [conn {:keys [lhs rhs to-take to-drop]} tried-constraints]
   ;; Potentially we want to reify info about which combinations has
   ;; been tried and maybe even the rules into the db itself.
-  (when-let [result (d/q lhs conn (partial not-tried? tried))]
+  (when-let [result (d/q lhs conn (partial head-constraints-not-tried? tried-constraints))]
     (let [head-count (+ to-take to-drop)]
       [(subvec result 0 to-take)
        (subvec result to-take head-count)
@@ -108,11 +104,9 @@
   ([conn all-rules]
    (run conn all-rules nil))
   ([conn all-rules max-runs]
-   (let [all-rules (map rule->executable-rule all-rules)]
-     (loop [[{:keys [name] :as rule} & rules] (shuffle all-rules) changes nil runs 0 tried {}]
-       (let [[to-take to-drop to-add :as result] (run-rule @conn rule (tried name #{}))
-             tried (cond-> tried
-                     result (update-in [name] (fnil conj #{}) (vec (concat to-take to-drop))))
+   (let [all-rules (mapv rule->executable-rule all-rules)]
+     (loop [[{:keys [name] :as rule} & rules] (shuffle all-rules) changes nil runs 0 tried-constraints {}]
+       (let [[to-take to-drop to-add :as result] (run-rule @conn rule (tried-constraints name #{}))
              txs (concat (add-tx to-add) (retract-tx to-drop))
              {:keys [tx-data]} (d/transact! conn txs)
              changes (concat changes tx-data)]
@@ -123,7 +117,8 @@
                   (when rules
                     changes)
                   (inc runs)
-                  tried)))))))
+                  (cond-> tried-constraints
+                    result (update-in [name] (fnil conj #{}) (vec (concat to-take to-drop)))))))))))
 
 (defn run-once
   ([rules wm]
