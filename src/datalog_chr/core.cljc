@@ -94,7 +94,7 @@
 (defn run-rule [conn {:keys [lhs rhs to-take to-drop]} tried-constraints]
   ;; Potentially we want to reify info about which combinations has
   ;; been tried and maybe even the rules into the db itself.
-  (when-let [result (d/q lhs conn (partial head-constraints-not-tried? tried-constraints))]
+  (when-let [result (d/q lhs conn (partial constraints-not-tried? tried-constraints))]
     (let [head-count (+ to-take to-drop)]
       [(subvec result 0 to-take)
        (subvec result to-take head-count)
