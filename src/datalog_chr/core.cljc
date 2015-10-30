@@ -24,13 +24,14 @@
                                 (= :name k) first))) {})))
 
 (defn entity->constraint [e]
-  (mapv e (sort (keys (dissoc e :db/id)))))
+  (let [ks (keys (dissoc e :db/id))]
+    (vec (cons (keyword (namespace (first ks))) (map e (sort ks))))))
 
-(defn constraint-position-attribute [idx]
-  (keyword "chr" (str "at_" idx)))
+(defn constraint-position-attribute [name idx]
+  (keyword (cc/name name) (str "at_" idx)))
 
-(defn constraint->entity [c]
-  (zipmap (map constraint-position-attribute (range)) c))
+(defn constraint->entity [[name & values]]
+  (zipmap (map (partial constraint-position-attribute name) (range)) values))
 
 (defn entity->datoms [id e]
   (mapv (comp vec (partial cons id)) e))
