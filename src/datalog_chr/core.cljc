@@ -14,15 +14,15 @@
 
 (defn compile-rhs [name rhs]
   (let [vars (sort (mapcat extract-lvars rhs))
-        src `(fn ~(symbol (or name "rhs")) [~@vars] ~rhs)]
+        src `(~'fn ~(symbol (or name "rhs")) [~@vars] ~rhs)]
     (with-meta (eval src) {:src src :vars vars})))
 
 (defn rule->map [rule]
   (if (map? rule)
     rule
     (->> (partition 2 (partition-by keyword? rule))
-         (reduce (fn [acc [[kw] clause]]
-                   (assoc acc kw (vec clause))) {}))))
+         (reduce (fn [acc [[k] clause]]
+                   (assoc acc k (vec clause))) {}))))
 
 (defn entity->constraint [e]
   (mapv e (sort (keys (dissoc e :db/id)))))
@@ -60,7 +60,7 @@
                (condp some [then]
                  vector? then
                  nil? [true]
-                 (-> then meta :src vector)))))
+                 (->> then meta :src (cc/drop 3))))))
 
 (defn add-tx [to-add]
   (map (fn [entity id]
