@@ -12,9 +12,9 @@
                    (vswap! v conj %)) x)
     @v))
 
-(defn compile-rhs [rhs]
+(defn compile-rhs [name rhs]
   (let [vars (sort (mapcat extract-lvars rhs))
-        src `(fn [~@vars] ~rhs)]
+        src `(fn ~(symbol (or name "rhs")) [~@vars] ~rhs)]
     (with-meta (eval src) {:src src :vars vars})))
 
 (defn rule->map [rule]
@@ -42,12 +42,14 @@
        (reduce into [])))
 
 (defn build-rule [rule]
-  (let [{:keys [then] :as rule} (rule->map rule)]
-    (cond-> rule
-      (sequential? then) (assoc :then (compile-rhs then)))))
+  (let [{:keys [then] :as rule [name] :name} (rule->map rule)]
+    (cond-> (assoc rule :name (or name (str (d/squuid))))
+      (sequential? then) (assoc :then (compile-rhs name then)))))
 
-(defn format-rule [{:keys [take drop then when]}]
-  (vec (concat take
+(defn format-rule [{:keys [name take drop then when]}]
+  (vec (concat (cc/when name
+                 [name (symbol "@")])
+               take
                (cc/when (and take drop)
                  ['\\])
                drop
@@ -59,11 +61,6 @@
                  vector? then
                  nil? [true]
                  (-> then meta :src vector)))))
-
-(defn run-rule [conn {:keys [lhs rhs to-drop]}]
-  (when-let [result (d/q lhs conn)]
-    (let [[to-drop args] (split-at to-drop result)]
-      [to-drop (some-> rhs (apply args))])))
 
 (defn add-tx [to-add]
   (map (fn [entity id]
@@ -77,10 +74,11 @@
     [:db.fn/retractEntity id]))
 
 (defn rule->executable-rule [rule]
-  (let [{:keys [take drop when then]} (build-rule rule)
+  (let [{:keys [name take drop when then]} (build-rule rule)
         head (position-constraints->datoms (concat take drop))
         head-vars (distinct (map first head))]
-    {:lhs (vec (concat [:find (vec (concat (cc/drop (count take) head-vars)
+    {:name name
+     :lhs (vec (concat [:find (vec (concat (cc/drop (count take) head-vars)
                                            (-> then meta :vars)))]
                        [:where]
                        head
@@ -90,22 +88,34 @@
      :rhs then
      :to-drop (count drop)}))
 
-(defn run [conn all-rules]
-  (let [all-rules (map rule->executable-rule all-rules)]
-    (loop [[rule & rules] (shuffle all-rules) chages nil]
-      (let [[to-drop to-add] (run-rule @conn rule)
-            txs (concat (add-tx to-add) (retract-tx to-drop))
-            {:keys [tx-data]} (d/transact! conn txs)
-            chages (concat chages tx-data)]
-        (if (and (nil? rules) (empty? chages))
-          conn
-          (recur (or rules (shuffle all-rules)) (when rules
-                                                  chages)))))))
+(defn run-rule [conn {:keys [lhs rhs to-drop]}]
+  (when-let [result (d/q lhs conn)]
+    (let [[to-drop args] (split-at to-drop result)]
+      [to-drop (some-> rhs (apply args))])))
 
-(defn run-once [rules wm]
-  @(doto (d/create-conn)
-     (d/transact! (add-tx wm))
-     (run rules)))
+(defn run
+  ([conn all-rules]
+   (run conn all-rules nil))
+  ([conn all-rules max-runs]
+   (let [all-rules (map rule->executable-rule all-rules)]
+     (loop [[rule & rules] (shuffle all-rules) changes nil runs 0]
+       (let [[to-drop to-add] (run-rule @conn rule)
+             txs (concat (add-tx to-add) (retract-tx to-drop))
+             {:keys [tx-data]} (d/transact! conn txs)
+             changes (concat changes tx-data)]
+         (if (or (and (nil? rules) (empty? changes))
+                 (and max-runs (= runs max-runs)))
+           conn
+           (recur (or rules (shuffle all-rules)) (when rules
+                                                   changes) (inc runs))))))))
+
+(defn run-once
+  ([rules wm]
+   (run-once rules wm nil))
+  ([rules wm max-runs]
+   @(doto (d/create-conn)
+      (d/transact! (add-tx wm))
+      (run rules max-runs))))
 
 (defn constraints [db]
   (->> (d/q '[:find [(pull ?e [*]) ...] :where [?e]] db)
@@ -145,12 +155,22 @@
      (= #{[:prime 7] [:prime 5] [:prime 3] [:prime 2]})
      assert)
 
-(def fib-rules '[[:take
+(def fib-rules '[[:name fib
+                  :take
                   [:upto ?max]
-                  [:fib ?a ?av]
                   [:fib ?b ?bv]
+                  :drop ;; TODO: this drop shouldn't be necessary, rules should only fire once per set of constraints.
+                  [:fib ?a ?av]
                   :when
-                  [(inc ?a) ?b]
+                  [(inc ?a) ?x]
+                  [(= ?x ?b)]
                   [(< ?b ?max)]
                   :then
                   [:fib (inc ?b) (+ ?av ?bv)]]])
+
+(->> (run-once fib-rules [[:upto 5] [:fib 1 1] [:fib 2 1]])
+     constraints
+     (= #{[:upto 5] [:fib 5 5] [:fib 4 3]})
+     assert)
+
+;; http://chrjs.net/playground.html
