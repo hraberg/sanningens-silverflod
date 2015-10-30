@@ -78,8 +78,7 @@
         not-tried-sym (gensym (lvar "constraints-not-tried?"))
         rhs (compile-rhs name then)]
     {:name (or name (d/squuid))
-     :lhs (vec (concat [:find (vec (concat head-vars
-                                           (-> rhs meta :vars)))]
+     :lhs (vec (concat [:find (vec (concat head-vars (-> rhs meta :vars)))]
                        [:in '$ not-tried-sym]
                        [:where]
                        head
@@ -96,9 +95,9 @@
   ;; been tried and maybe even the rules into the db itself.
   (when-let [result (d/q lhs conn (partial constraints-not-tried? tried-constraints))]
     (let [head-count (+ to-take to-drop)]
-      [(subvec result 0 to-take)
-       (subvec result to-take head-count)
-       (some-> rhs (apply (subvec result head-count)))])))
+      {:to-take (subvec result 0 to-take)
+       :to-drop (subvec result to-take head-count)
+       :to-add (some-> rhs (apply (subvec result head-count)))})))
 
 (defn run
   ([conn all-rules]
@@ -106,7 +105,7 @@
   ([conn all-rules max-runs]
    (let [all-rules (mapv (comp rule-map->executable-rule rule->map) all-rules)]
      (loop [[{:keys [name] :as rule} & rules] (shuffle all-rules) changes nil runs 0 tried-constraints {}]
-       (let [[to-take to-drop to-add :as result] (run-rule @conn rule (tried-constraints name #{}))
+       (let [{:keys [to-take to-drop to-add] :as result} (run-rule @conn rule (tried-constraints name #{}))
              txs (concat (add-tx to-add) (retract-tx to-drop))
              {:keys [tx-data]} (d/transact! conn txs)
              changes (concat changes tx-data)]
