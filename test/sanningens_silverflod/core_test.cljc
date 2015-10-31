@@ -70,39 +70,61 @@
 
 ;; The examples from http://chrjs.net/playground.html (MIT License)
 
-;; /**
-;;  *
-;;  * Computes greatest common divisor by Euclidean algorithm.
-;;  *
-;;  * Example Usage:
-;;  *   gcd(12), gcd(8)
-;;  *
-;;  */
+(deftest chr-js-playground-examples
+  (are [rules wm expected] (= expected (chr/constraints @(chr/run-once rules wm)))
 
-;; cleanup @ gcd(0) <=> true
-;; gcd(N) \ gcd(M) <=> 0 < N, N <= M | gcd(M % N)
 
-;; /**
-;;  *
-;;  * Computes Fibonacci numbers by Bottom-Up Evaluation.
-;;  *
-;;  * Example Usage:
-;;  *   fib(1,1), fib(2,1), upto(10)
-;;  */
+    '[;; cleanup @ gcd(0) <=> true
+      [:name cleanup
+       :drop [:gcd 0]]
 
-;; upto(N), fib(A,AV), fib(B,BV) ==>
-;;   B === A+1, B < N | fib(B+1,AV+BV)
+      ;; gcd(N) \ gcd(M) <=> 0 < N, N <= M | gcd(M % N)
+      [:take [:gcd ?n]
+       :drop [:gcd ?m]
+       :when
+       [(pos? ?n)]
+       [(<= ?n ?m)]
+       :then
+       [:gcd (mod ?m ?n)]]]
 
-;; /**
-;;  *
-;;  * Generate prime numbers by Sieve of Eratosthenes.
-;;  *
-;;  * Example Usage:
-;;  *   upto(12)
-;;  */
+    #{[:gcd 12] [:gcd 8]}
+    #{[:gcd 4]}
 
-;; gen   @ upto(N) <=> N > 1 | upto(N-1), prime(N)
-;; sift  @ prime(X) \ prime(Y) <=> Y % X === 0 | true
+    '[;; upto(N), fib(A,AV), fib(B,BV) ==>
+      ;;   B === A+1, B < N | fib(B+1,AV+BV)
+      [:take
+       [:upto ?n]
+       [:fib ?a ?av]
+       [:fib ?b ?bv]
+       :when
+       [(inc ?a) ?x]
+       [(= ?x ?b)]
+       [(< ?b ?n)]
+       :then
+       [:fib (inc ?b) (+ ?av ?bv)]]]
+
+    #{[:fib 1 1] [:fib 2 1] [:upto 10]}
+    #{[:upto 10] [:fib 1 1] [:fib 2 1] [:fib 3 2] [:fib 4 3] [:fib 5 5]
+      [:fib 6 8] [:fib 7 13] [:fib 8 21] [:fib 9 34] [:fib 10 55]}
+
+    '[;; gen   @ upto(N) <=> N > 1 | upto(N-1), prime(N)
+      [:name gen
+       :drop [:upto ?n]
+       :when [(> ?n 1)]
+       :then
+       [:upto (dec ?n)]
+       [:prime ?n]]
+
+      ;; sift  @ prime(X) \ prime(Y) <=> Y % X === 0 | true
+      [:name sift
+       :take [:prime ?x]
+       :drop [:prime ?y]
+       :when
+       [(mod ?y ?x) ?mod]
+       [(zero? ?mod)]]]
+
+    #{[:upto 12]}
+    #{[:upto 1] [:prime 2] [:prime 3] [:prime 5] [:prime 7] [:prime 11]}))
 
 ;; /**
 ;;  *
