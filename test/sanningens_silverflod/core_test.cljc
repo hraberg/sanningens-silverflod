@@ -73,7 +73,6 @@
 (deftest chr-js-playground-examples
   (are [rules wm expected] (= expected (chr/constraints @(chr/run-once rules wm)))
 
-
     '[;; cleanup @ gcd(0) <=> true
       [:name cleanup
        :drop [:gcd 0]]
@@ -124,45 +123,130 @@
        [(zero? ?mod)]]]
 
     #{[:upto 12]}
-    #{[:upto 1] [:prime 2] [:prime 3] [:prime 5] [:prime 7] [:prime 11]}))
+    #{[:upto 1] [:prime 2] [:prime 3] [:prime 5] [:prime 7] [:prime 11]}
 
-;; /**
-;;  *
-;;  * Computes for a directed graph
-;;  *   the shortest length for each path.
-;;  *
-;;  * Example Usage:
-;;  *   example
-;;  */
+    '[;; rem_long @ path(X,Y,L1) \ path(X,Y,L2)
+      ;;   <=> L1 <= L2 | true
+      [:name rem-long
+       :take [:path ?x ?y ?l1]
+       :drop [:path ?x ?y ?l2]
+       :when [(<= ?l1 ?l2)]]
 
-;; rem_long @ path(X,Y,L1) \ path(X,Y,L2)
-;;   <=> L1 <= L2 | true
-;; path_add @ path(X,Y,L1), path(Y,Z,L2)
-;;   ==> X !== Z | path(X,Z,L1+L2)
+      ;; path_add @ path(X,Y,L1), path(Y,Z,L2)
+      ;;   ==> X !== Z | path(X,Z,L1+L2)
+      [:name path-add
+       :take
+       [:path ?x ?y ?l1]
+       [:path ?y ?z ?l2]
+       :when
+       [(not= ?x ?z)]
+       :then
+       [:path ?x ?z (+ ?l1 ?l2)]]]
 
-;; example <=>
-;;   path('London','Berlin',1100),
-;;   path('Berlin','Vienna',650),
-;;   path('Vienna','London',1500),
-;;   path('Vienna','Paris',1200),
-;;   path('Ulm','Vienna',600),
-;;   path('Paris','Ulm',700)
+    #{[:path "London" "Berlin" 1100]
+      [:path "Berlin" "Vienna" 650]
+      [:path "Vienna" "London" 1500]
+      [:path "Vienna" "Paris" 1200]
+      [:path "Ulm" "Vienna" 600]
+      [:path "Paris" "Ulm" 700]}
+	#{[:path "London" "Berlin" 1100]
+      [:path "Berlin" "Vienna" 650]
+      [:path "London" "Vienna" 1750]
+      [:path "Vienna" "London" 1500]
+      [:path "Berlin" "London" 2150]
+      [:path "Vienna" "Berlin" 2600]
+      [:path "Vienna" "Paris" 1200]
+      [:path "Berlin" "Paris" 1850]
+      [:path "London" "Paris" 2950]
+      [:path "Ulm" "Vienna" 600]
+      [:path "Ulm" "London" 2100]
+      [:path "Ulm" "Berlin" 3200]
+      [:path "Ulm" "Paris" 1800]
+      [:path "Paris" "Ulm" 700]
+      [:path "Vienna" "Ulm" 1900]
+      [:path "Berlin" "Ulm" 2550]
+      [:path "London" "Ulm" 3650]
+      [:path "Paris" "Vienna" 1300]
+      [:path "Paris" "London" 2800]
+      [:path "Paris" "Berlin" 3900]}
 
-;; /**
-;;  *
-;;  * Solves the Hamming Problem which is to build the
-;;  *   infinite ascending sequence of positive numbers
-;;  *   containing no prime factors other than 2, 3 and 5.
-;;  *
-;;  * Example Usage:
-;;  *   succ(0,1), hamming(0), upto(50)
-;;  */
+    ;; '[;; succ(A,A) <=> true
+    ;;   [:drop [:succ ?a ?a]]
 
-;; succ(A,A) <=> true
-;; succ(A,B) \ succ(A,C) <=> A < B, B <= C | succ(B,C)
+    ;;   ;; succ(A,B) \ succ(A,C) <=> A < B, B <= C | succ(B,C)
+    ;;   [:take [:succ ?a ?b]
+    ;;    :drop [:succ ?a ?c]
+    ;;    :when
+    ;;    [(< ?a ?b)]
+    ;;    [(<= ?b ?c)]
+    ;;    :then
+    ;;    [:succ ?b ?c]]
 
-;; upto(N), succ(S,X) \ hamming(S) <=> X < N |
-;;   succ(X,2*X),
-;;   succ(X,3*X),
-;;   succ(X,5*X),
-;;   hamming(X)
+    ;;   ;; upto(N), succ(S,X) \ hamming(S) <=> X < N |
+    ;;   ;;   succ(X,2*X),
+    ;;   ;;   succ(X,3*X),
+    ;;   ;;   succ(X,5*X),
+    ;;   ;;   hamming(X)
+
+    ;;   [:take
+    ;;    [:upto ?n]
+    ;;    [:succ ?s ?x]
+    ;;    :drop
+    ;;    [:hamming ?s]
+    ;;    :when
+    ;;    [(< ?x ?n)]
+    ;;    :then
+    ;;    [:succ ?x (* 2 ?x)]
+    ;;    [:succ ?x (* 3 ?x)]
+    ;;    [:succ ?x (* 5 ?x)]
+    ;;    [:hamming ?x]]]
+
+    ;; #{[:succ 0 1] [:hamming 0] ["upto" 50]}
+    ;; #{[:succ 0 1]
+    ;;   [:upto 50]
+    ;;   [:succ 1 2]
+    ;;   [:succ 2 3]
+    ;;   [:succ 3 4]
+    ;;   [:succ 4 5]
+    ;;   [:succ 5 6]
+    ;;   [:succ 9 10]
+    ;;   [:succ 6 8]
+    ;;   [:succ 8 9]
+    ;;   [:succ 10 12]
+    ;;   [:succ 12 15]
+    ;;   [:succ 18 20]
+    ;;   [:succ 15 16]
+    ;;   [:succ 16 18]
+    ;;   [:succ 20 24]
+    ;;   [:succ 24 25]
+    ;;   [:succ 25 27]
+    ;;   [:succ 27 30]
+    ;;   [:succ 40 45]
+    ;;   [:succ 36 40]
+    ;;   [:succ 30 32]
+    ;;   [:succ 32 36]
+    ;;   [:succ 45 48]
+    ;;   [:succ 48 50]
+    ;;   [:succ 75 80]
+    ;;   [:succ 50 54]
+    ;;   [:succ 54 60]
+    ;;   [:succ 72 75]
+    ;;   [:succ 120 125]
+    ;;   [:succ 80 81]
+    ;;   [:succ 81 90]
+    ;;   [:succ 125 135]
+    ;;   [:succ 60 64]
+    ;;   [:succ 64 72]
+    ;;   [:succ 90 96]
+    ;;   [:succ 96 100]
+    ;;   [:succ 150 160]
+    ;;   [:succ 100 108]
+    ;;   [:succ 108 120]
+    ;;   [:succ 160 180]
+    ;;   [:succ 180 200]
+    ;;   [:succ 200 225]
+    ;;   [:succ 135 144]
+    ;;   [:succ 144 150]
+    ;;   [:succ 225 240]
+    ;;   [:hamming 48]}
+))
