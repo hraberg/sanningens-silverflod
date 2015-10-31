@@ -25,7 +25,7 @@
 
 * http://www.informatik.uni-ulm.de/pm/fileadmin/pm/home/fruehwirth/Papers/chr-lnai08.pdf
 * https://lifeware.inria.fr/~tmartine/papers/martinez11chr.pdf
-
+* http://chrjs.net/
 
 ## License
 
