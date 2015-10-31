@@ -1,7 +1,7 @@
 
-# datalog-chr
+# Sanningens Silverflod
 
-Contraint Handling Rules on top of DataScript.
+Constraint Handling Rules on top of DataScript.
 
 ```clojure
 [[:drop [:gcd 0]]

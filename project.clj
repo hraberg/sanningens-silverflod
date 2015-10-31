@@ -1,6 +1,6 @@
-(defproject datalog-chr "0.1.0-SNAPSHOT"
+(defproject sanningens-silverflod "0.1.0-SNAPSHOT"
   :description "Constraint Handling Rules on DataScript"
-  :url "http://github.com/hraberg/datalog-chr"
+  :url "http://github.com/hraberg/sanningens-silverflod"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.7.0"]
