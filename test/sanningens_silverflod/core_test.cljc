@@ -141,14 +141,18 @@
        :when
        [(not= ?x ?z)]
        :then
-       [:path ?x ?z (+ ?l1 ?l2)]]]
+       [:path ?x ?z (+ ?l1 ?l2)]]
 
-    #{[:path "London" "Berlin" 1100]
-      [:path "Berlin" "Vienna" 650]
-      [:path "Vienna" "London" 1500]
-      [:path "Vienna" "Paris" 1200]
-      [:path "Ulm" "Vienna" 600]
-      [:path "Paris" "Ulm" 700]}
+      [:drop [:example]
+       :then
+       [:path "London" "Berlin" 1100]
+       [:path "Berlin" "Vienna" 650]
+       [:path "Vienna" "London" 1500]
+       [:path "Vienna" "Paris" 1200]
+       [:path "Ulm" "Vienna" 600]
+       [:path "Paris" "Ulm" 700]]]
+
+    #{[:example]}
 	#{[:path "London" "Berlin" 1100]
       [:path "Berlin" "Vienna" 650]
       [:path "London" "Vienna" 1750]
