@@ -3,9 +3,7 @@
 *Allt genom lunden gröna, rinner det en flod* --
  [Träd, Gräs och Stenar, 1970](https://youtu.be/1sF2LdPyd7o)
 
-### Constraint Handling Rules on top of DataScript.
-
-*Experimental*
+### Constraint Handling Rules on top of DataScript Experiment.
 
 ```clojure
 [[:drop [:gcd 0]]
