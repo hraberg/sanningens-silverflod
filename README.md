@@ -17,6 +17,7 @@
 
 (->> #{[:gcd 9] [:gcd 6] [:gcd 3]}
      (run-once gcd-rules)
+     deref
      constraints)
 ;=> #{[:gcd 3]}
 ```
