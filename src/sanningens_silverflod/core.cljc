@@ -74,7 +74,7 @@
   (not (contains? tried-constraints (vec vars))))
 
 (defn rule-map->executable-rule [{:keys [name take drop when then]}]
-  (let [head (vec (head-constraints->datoms (concat take drop)))
+  (let [head (vec (head-constraints->datoms (concat drop take)))
         head-vars (vec (distinct (map first head)))
         not-tried-sym (gensym (lvar "constraints-not-tried?"))
         rhs (compile-rhs name then)]
@@ -110,8 +110,8 @@
   ;; been tried and maybe even the rules into the db itself.
   (when-let [result (d/q lhs db (partial constraints-not-tried? tried-constraints))]
     (let [head-count (+ to-take to-drop)]
-      {:to-take (subvec result 0 to-take)
-       :to-drop (subvec result to-take head-count)
+      {:to-drop (subvec result 0 to-drop)
+       :to-take (subvec result to-drop head-count)
        :to-add (some-> rhs (apply (subvec result head-count)))})))
 
 (defn run
@@ -119,7 +119,7 @@
    (run conn all-rules nil))
   ([conn all-rules max-runs]
    (let [all-rules (mapv (comp rule-map->executable-rule parse-rule->rule-map) all-rules)]
-     (loop [[{:keys [name] :as rule} & rules] (shuffle all-rules) changes nil runs 0 tried-constraints {}]
+     (loop [[{:keys [name] :as rule} & rules] all-rules changes nil runs 0 tried-constraints {}]
        (let [{:keys [to-take to-drop to-add] :as result} (run-rule @conn rule (tried-constraints name #{}))
              head (vec (concat to-take to-drop))
              txs (concat [[:db.fn/call ensure-constraints-exist head]]
@@ -129,7 +129,7 @@
          (if (or (and (nil? rules) (empty? changes))
                  (= runs max-runs))
            conn
-           (recur (or rules (shuffle all-rules))
+           (recur (or rules all-rules)
                   (when rules
                     changes)
                   (inc runs)
