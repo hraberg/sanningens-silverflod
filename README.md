@@ -5,6 +5,8 @@
 
 ### Constraint Handling Rules on top of DataScript.
 
+*Experimental*
+
 ```clojure
 [[:drop [:gcd 0]]
 
