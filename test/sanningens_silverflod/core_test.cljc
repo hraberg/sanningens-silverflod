@@ -174,36 +174,60 @@
       [:path "Paris" "London" 2800]
       [:path "Paris" "Berlin" 3900]}
 
-    ;; '[;; succ(A,A) <=> true
-    ;;   [:drop [:succ ?a ?a]]
+    '[;; succ(A,A) <=> true
+      [:drop [:succ ?a ?a]]
 
-    ;;   ;; succ(A,B) \ succ(A,C) <=> A < B, B <= C | succ(B,C)
-    ;;   [:take [:succ ?a ?b]
-    ;;    :drop [:succ ?a ?c]
-    ;;    :when
-    ;;    [(< ?a ?b)]
-    ;;    [(<= ?b ?c)]
-    ;;    :then
-    ;;    [:succ ?b ?c]]
+      ;; succ(A,B) \ succ(A,C) <=> A < B, B <= C | succ(B,C)
+      [:take
+       [:succ ?a ?b]
+       :drop
+       [:succ ?a ?c]
+       :when
+       [(< ?a ?b)]
+       [(<= ?b ?c)]
+       :then
+       [:succ ?b ?c]]
 
-    ;;   ;; upto(N), succ(S,X) \ hamming(S) <=> X < N |
-    ;;   ;;   succ(X,2*X),
-    ;;   ;;   succ(X,3*X),
-    ;;   ;;   succ(X,5*X),
-    ;;   ;;   hamming(X)
+      ;; upto(N), succ(S,X) \ hamming(S) <=> X < N |
+      ;;   succ(X,2*X),
+      ;;   succ(X,3*X),
+      ;;   succ(X,5*X),
+      ;;   hamming(X)
+      [:take
+       [:upto ?n]
+       [:succ ?s ?x]
+       ;; TODO: doesn't work, fires in wrong order, might need to sort by age?
+       ;; :drop
+       [:hamming ?s]
+       :when
+       [(< ?x ?n)]
+       :then
+       [:succ ?x (* 2 ?x)]
+       [:succ ?x (* 3 ?x)]
+       [:succ ?x (* 5 ?x)]
+       [:hamming ?x]]]
 
-    ;;   [:take
-    ;;    [:upto ?n]
-    ;;    [:succ ?s ?x]
-    ;;    :drop
-    ;;    [:hamming ?s]
-    ;;    :when
-    ;;    [(< ?x ?n)]
-    ;;    :then
-    ;;    [:succ ?x (* 2 ?x)]
-    ;;    [:succ ?x (* 3 ?x)]
-    ;;    [:succ ?x (* 5 ?x)]
-    ;;    [:hamming ?x]]]
+    #{[:succ 0 1] [:hamming 0] [:upto 5]}
+    #{;; TODO: these 4 shouldn't be here, see the missing :drop above.
+      [:hamming 0]
+      [:hamming 1]
+      [:hamming 2]
+      [:hamming 3]
+
+      [:hamming 4]
+      [:upto 5]
+      [:succ 0 1]
+      [:succ 1 2]
+      [:succ 2 3]
+      [:succ 3 4]
+      [:succ 4 5]
+      [:succ 5 6]
+      [:succ 6 8]
+      [:succ 8 9]
+      [:succ 9 10]
+      [:succ 10 12]
+      [:succ 12 15]
+      [:succ 15 20]}
 
     ;; #{[:succ 0 1] [:hamming 0] ["upto" 50]}
     ;; #{[:hamming 48]
@@ -253,4 +277,4 @@
     ;;   [:succ 180 200]
     ;;   [:succ 200 225]
     ;;   [:succ 225 240]}
-))
+    ))

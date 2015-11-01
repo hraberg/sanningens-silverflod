@@ -62,15 +62,13 @@
                  [true]))))
 
 (defn add-tx [to-add]
-  (map (fn [entity id]
-         (assoc (cond->> entity
-                  (vector? entity) constraint->entity)
-                :db/id (- (inc id))))
-       to-add (range)))
+  (mapv (fn [entity id]
+          (cond->> entity
+            (vector? entity) constraint->entity))
+        to-add (range)))
 
 (defn retract-tx [to-drop]
-  (for [id to-drop]
-    [:db.fn/retractEntity id]))
+  (mapv (partial vector :db.fn/retractEntity) to-drop))
 
 (defn constraints-not-tried? [tried-constraints & vars]
   (not (contains? tried-constraints (vec vars))))
@@ -97,6 +95,9 @@
   (->> (d/q '[:find [(pull ?e [*]) ...] :where [?e]] db)
        (map entity->constraint)
        set))
+
+(defn id->constraint [db id]
+  (entity->constraint (d/pull db '[*] id)))
 
 (defn ensure-constraints-exist [db head]
   (when-let [missing (seq (for [constraint head
