@@ -27,7 +27,8 @@ This project is related to
 [DataScript](https://github.com/tonsky/datascript) and focuses on
 exploring usage, in-memory and concurrent execution.
 
-The current implementation is pretty naive and single threaded.
+The current implementation is pretty naive and single threaded. It's
+also broken.
 
 
 ## References
