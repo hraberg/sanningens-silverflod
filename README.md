@@ -25,7 +25,12 @@
 
 * http://www.informatik.uni-ulm.de/pm/fileadmin/pm/home/fruehwirth/Papers/chr-lnai08.pdf
 * https://lifeware.inria.fr/~tmartine/papers/martinez11chr.pdf
+* http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.132.9800&rep=rep1&type=pdf
+* http://www.qatar.cmu.edu/~sllam/my_papers/published/SLLAM_tplp11.pdf
+* http://www.qatar.cmu.edu/~sllam/my_papers/workshop/SLLAM_CHR_2008.pdf
+
 * http://chrjs.net/
+* https://github.com/takeoutweight/Clojure-CHR
 
 ## License
 
