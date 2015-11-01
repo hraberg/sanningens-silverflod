@@ -28,6 +28,7 @@
 * http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.132.9800&rep=rep1&type=pdf
 * http://www.qatar.cmu.edu/~sllam/my_papers/published/SLLAM_tplp11.pdf
 * http://www.qatar.cmu.edu/~sllam/my_papers/workshop/SLLAM_CHR_2008.pdf
+* http://www.ccs.neu.edu/home/turon/scalable-joins.pdf
 
 * http://chrjs.net/
 * https://github.com/takeoutweight/Clojure-CHR
