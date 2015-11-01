@@ -74,7 +74,7 @@
   (not (contains? tried-constraints (vec vars))))
 
 (defn rule-map->executable-rule [{:keys [name take drop when then]}]
-  (let [head (vec (head-constraints->datoms (concat drop take)))
+  (let [head (vec (head-constraints->datoms (concat take drop)))
         head-vars (vec (distinct (map first head)))
         not-tried-sym (gensym (lvar "constraints-not-tried?"))
         rhs (compile-rhs name then)]
@@ -82,7 +82,7 @@
      :lhs (vec (concat [:find (vec (concat head-vars (-> rhs meta :vars)))]
                        [:in '$ not-tried-sym]
                        [:where]
-                       head
+                       (reverse head)
                        [[(cons not-tried-sym head-vars)]]
                        (cc/when (> (count head-vars) 1)
                          [[(cons 'not= head-vars)]])
@@ -110,8 +110,8 @@
   ;; been tried and maybe even the rules into the db itself.
   (when-let [result (d/q lhs db (partial constraints-not-tried? tried-constraints))]
     (let [head-count (+ to-take to-drop)]
-      {:to-drop (subvec result 0 to-drop)
-       :to-take (subvec result to-drop head-count)
+      {:to-take (subvec result 0 to-take)
+       :to-drop (subvec result to-take head-count)
        :to-add (some-> rhs (apply (subvec result head-count)))})))
 
 (defn run
