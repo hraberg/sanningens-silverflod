@@ -105,9 +105,10 @@
                             constraint))]
     (throw (ex-info "Missing constraints:" {:missing (vec missing)}))))
 
+;; Potentially we want to reify info about which combinations has
+;; been tried and maybe even the rules into the db itself.
+;; not and not-join are to be supported in datascript.query-v3
 (defn run-rule [db {:keys [lhs rhs to-take to-drop]} tried-constraints]
-  ;; Potentially we want to reify info about which combinations has
-  ;; been tried and maybe even the rules into the db itself.
   (when-let [result (d/q lhs db (partial constraints-not-tried? tried-constraints))]
     (let [head-count (+ to-take to-drop)]
       {:to-take (subvec result 0 to-take)
