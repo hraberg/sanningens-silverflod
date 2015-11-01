@@ -7,4 +7,5 @@
                  [org.clojure/clojurescript "1.7.145"]
                  [org.clojure/core.async "0.2.371"]
                  [datascript "0.13.2"]]
+  :pedantic? :abort
   :plugins [[lein-cljsbuild "1.1.0"]])
