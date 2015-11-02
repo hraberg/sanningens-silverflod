@@ -88,6 +88,7 @@
                          [[(cons 'not= head-vars)]])
                        when))
      :rhs rhs
+     :head (vec (vals (group-by first head)))
      :to-take (count take)
      :to-drop (count drop)}))
 
@@ -95,6 +96,9 @@
   (->> (d/q '[:find [(pull ?e [*]) ...] :where [?e]] db)
        (map entity->constraint)
        set))
+
+(defn matches-head? [db head]
+  (d/q (concat [:find (ffirst head)'. :where] head) db))
 
 (defn id->constraint [db id]
   (entity->constraint (d/pull db '[*] id)))
@@ -126,12 +130,15 @@
              txs (concat [[:db.fn/call ensure-constraints-exist head]]
                          (add-tx to-add) (retract-tx to-drop))
              {:keys [tx-data]} (d/transact! conn txs)
-             changes? (not-empty tx-data)]
-         (if (or (and (nil? rules) (not changes?))
+             changes? (not-empty tx-data)
+             new-datoms (mapv seq (filter last tx-data))]
+          (if (or (and (nil? rules) (not changes?))
                  (= runs max-runs))
            conn
            (recur (if changes?
-                    all-rules
+                    (vec (concat (for [{:keys [head] :as rule} all-rules
+                                       :when (some (partial matches-head? new-datoms) head)]
+                                   rule) rules))
                     rules)
                   (cond-> tried-constraints
                     result (update-in [name] (fnil conj #{}) head))
