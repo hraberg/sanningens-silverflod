@@ -143,7 +143,8 @@
           (if (or (and (nil? rules) (empty? tx-data))
                  (= runs max-runs))
            conn
-           (recur (concat (rules-matching-some-constraint (new-datoms tx-data) all-rules) rules)
+           (recur (or (concat (rules-matching-some-constraint (new-datoms tx-data) all-rules) rules)
+                      (rules-matching-some-constraint @conn all-rules))
                   (cond-> tried-constraints
                     result (update-in [name] (fnil conj #{}) head))
                   (inc runs))))))))
