@@ -132,19 +132,18 @@
    (run conn all-rules nil))
   ([conn all-rules max-runs]
    (let [all-rules (mapv (comp rule-map->executable-rule parse-rule->rule-map) all-rules)]
-     (loop [[{:keys [name] :as rule} & rules] all-rules tried-constraints {} runs 0]
+     (loop [[{:keys [name] :as rule} & rules] (rules-matching-some-constraint @conn all-rules)
+            tried-constraints {}
+            runs 0]
        (let [{:keys [to-take to-drop to-add] :as result} (run-rule @conn rule (tried-constraints name #{}))
              head (vec (concat to-take to-drop))
              txs (concat [[:db.fn/call ensure-constraints-exist head]]
                          (add-tx to-add) (retract-tx to-drop))
-             {:keys [tx-data]} (d/transact! conn txs)
-             changes? (not-empty tx-data)]
-          (if (or (and (nil? rules) (not changes?))
+             {:keys [tx-data]} (d/transact! conn txs)]
+          (if (or (and (nil? rules) (empty? tx-data))
                  (= runs max-runs))
            conn
-           (recur (if changes?
-                    (concat (rules-matching-some-constraint (new-datoms tx-data) all-rules) rules)
-                    rules)
+           (recur (concat (rules-matching-some-constraint (new-datoms tx-data) all-rules) rules)
                   (cond-> tried-constraints
                     result (update-in [name] (fnil conj #{}) head))
                   (inc runs))))))))
