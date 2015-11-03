@@ -100,6 +100,14 @@
 (defn matches-head? [db head]
   (d/q (concat [:find (ffirst head)'. :where] head) db))
 
+(defn rules-matching-some-constraint [db rules]
+  (for [{:keys [head] :as rule} rules
+        :when (some (partial matches-head? db) head)]
+    rule))
+
+(defn new-datoms [tx-data]
+  (mapv seq (filter last tx-data)))
+
 (defn id->constraint [db id]
   (entity->constraint (d/pull db '[*] id)))
 
@@ -130,15 +138,12 @@
              txs (concat [[:db.fn/call ensure-constraints-exist head]]
                          (add-tx to-add) (retract-tx to-drop))
              {:keys [tx-data]} (d/transact! conn txs)
-             changes? (not-empty tx-data)
-             new-datoms (mapv seq (filter last tx-data))]
+             changes? (not-empty tx-data)]
           (if (or (and (nil? rules) (not changes?))
                  (= runs max-runs))
            conn
            (recur (if changes?
-                    (vec (concat (for [{:keys [head] :as rule} all-rules
-                                       :when (some (partial matches-head? new-datoms) head)]
-                                   rule) rules))
+                    (concat (rules-matching-some-constraint (new-datoms tx-data) all-rules) rules)
                     rules)
                   (cond-> tried-constraints
                     result (update-in [name] (fnil conj #{}) head))
