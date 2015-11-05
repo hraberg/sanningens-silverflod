@@ -63,6 +63,9 @@
 
 (declare lvar-equals)
 
+;; TODO: these LVars are a hack which modify the store without
+;; asserting new facts by updating the atom. Inspired by
+;; http://yieldprolog.sourceforge.net/
 (deftype LVar [name value]
   #?@(:cljs
        [IEquiv

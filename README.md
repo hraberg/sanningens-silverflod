@@ -56,6 +56,10 @@ also broken.
 * http://chrjs.net/
 * https://github.com/takeoutweight/Clojure-CHR
 
+### Embedded Prolog
+
+* http://yieldprolog.sourceforge.net/
+
 
 ## License
 
