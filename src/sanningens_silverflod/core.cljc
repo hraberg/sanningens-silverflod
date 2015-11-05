@@ -99,7 +99,7 @@
   (mapv (fn [entity id]
           (cond->> (replace-lvars entity)
             (vector? entity) constraint->entity))
-        (remove nil? to-add) (range)))
+        to-add (range)))
 
 (defn retract-tx [to-drop]
   (mapv (partial vector :db.fn/retractEntity) to-drop))
@@ -159,7 +159,7 @@
     (let [head-count (+ to-take to-drop)]
       {:to-take (subvec result 0 to-take)
        :to-drop (subvec result to-take head-count)
-       :to-add (some-> rhs (apply (subvec result head-count)))})))
+       :to-add (remove nil? (some-> rhs (apply (subvec result head-count))))})))
 
 (defn run
   ([conn all-rules]
