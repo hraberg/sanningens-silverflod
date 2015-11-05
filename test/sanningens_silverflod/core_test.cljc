@@ -254,3 +254,35 @@
       [:succ 180 200]
       [:succ 200 225]
       [:succ 225 240]}))
+
+(deftest logic-vars
+  (are [rules wm expected] (= expected (chr/constraints @(chr/run-once rules wm)))
+    '[;; reflexivity  @ leq(X,X) <=> true.
+      [:name reflexivity
+       :drop [:leq ?x ?x]]
+
+      ;; antisymmetry @ leq(X,Y), leq(Y,X) <=> X = Y.
+      [:name antisymmetry
+       :drop
+       [:leq ?x ?y]
+       [:leq ?y ?x]
+       :then
+       (unify ?x ?y)]
+
+      ;; idempotence  @ leq(X,Y) \ leq(X,Y) <=> true.
+      [:name idempotence
+       :take
+       [:leq ?x ?y]
+       :drop
+       [:leq ?x ?y]]
+
+      ;; ;; transitivity @ leq(X,Y), leq(Y,Z) ==> leq(X,Z).
+      [:name transitivity
+       :take
+       [:leq ?x ?y]
+       [:leq ?y ?z]
+       :then
+       [:leq ?x ?z]]]
+
+    '#{[:leq ?a ?b] [:leq ?b ?c] [:leq ?c ?a]}
+    #{}))

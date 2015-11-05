@@ -61,11 +61,45 @@
                  then
                  [true]))))
 
+(declare lvar-equals)
+
+(deftype LVar [name value]
+  #?@(:cljs
+       [IEquiv
+        (-equiv [this other]
+                (lvar-equals this other))])
+
+  #?@(:clj
+       [Object
+        (equals [this other]
+                (lvar-equals this other))]))
+
+(defn lvar-equals [x y]
+  (or (= @(.value x) y)
+      (and (instance? LVar y)
+           (or (= @(.value x) @(.value y))
+               x @(.value y)))))
+
+(defn new-lvar
+  ([name]
+   (new-lvar name nil))
+  ([name value]
+    (->LVar name (atom value))))
+
+(defn unify [^LVar x y]
+  (reset! (.value x) y)
+  nil)
+
+(defn replace-lvars [entity]
+  (let [vars (extract-lvars entity)
+        vars (zipmap vars (map #(new-lvar %) vars))]
+    (replace vars entity)))
+
 (defn add-tx [to-add]
   (mapv (fn [entity id]
-          (cond->> entity
+          (cond->> (replace-lvars entity)
             (vector? entity) constraint->entity))
-        to-add (range)))
+        (remove nil? to-add) (range)))
 
 (defn retract-tx [to-drop]
   (mapv (partial vector :db.fn/retractEntity) to-drop))
