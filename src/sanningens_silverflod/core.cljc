@@ -11,10 +11,13 @@
 (defn extract-lvars [x]
   (set (filter lvar? (flatten x))))
 
+(def builtins '[unify])
+
 (defn compile-rhs [name rhs]
   (let [vars (vec (sort (extract-lvars rhs)))
         src `(~'fn ~(symbol (str (or name "rhs"))) [~@vars] ~rhs)]
-    (with-meta (eval src) {:src src :vars vars})))
+    (with-meta (eval `(do (require ['~'sanningens-silverflod.core :refer '~builtins])
+                          ~src)) {:src src :vars vars})))
 
 (defn parse-rule->rule-map [rule]
   (->> (partition-by keyword? rule)
