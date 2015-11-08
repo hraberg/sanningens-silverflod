@@ -88,10 +88,17 @@
         (equals [this other]
                 (lvar-equals this other))]))
 
-(defn lvar-value [x]
-  (if (instance? LVar x)
-    (lvar-value @(.value ^LVar x))
+(defn lvar-chain [x]
+  (if (and (instance? LVar x)
+           (instance? LVar (.value ^LVar x)))
+    (recur @(.value ^LVar x))
     x))
+
+(defn lvar-value [x]
+  (let [v (lvar-chain x)]
+    (if (instance? LVar x)
+      @(.value ^LVar x)
+      x)))
 
 (defn lvar-equals [x y]
   (= (lvar-value x) (lvar-value y)))
@@ -107,10 +114,12 @@
        (= ::unbound @(.value ^LVar x))))
 
 (defn unify [x y]
-  (if (unbound-lvar? x)
-    (reset! (.value ^LVar x) y)
-    (when (unbound-lvar? y)
-      (unify y x)))
+  (let [x (lvar-chain x)]
+    (if (unbound-lvar? x)
+      (reset! (.value ^LVar x) y)
+      (let [y (lvar-chain y)]
+        (when (unbound-lvar? y)
+          (unify y x)))))
   nil)
 
 (defn replace-lvars [entity]
