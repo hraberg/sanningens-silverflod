@@ -84,7 +84,7 @@
   (or (= @(.value x) y)
       (and (instance? LVar y)
            (or (= @(.value x) @(.value ^LVar y))
-               x @(.value ^LVar y)))))
+               (= x @(.value ^LVar y))))))
 
 (defn new-lvar
   ([name]
