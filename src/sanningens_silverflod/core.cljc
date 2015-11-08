@@ -92,11 +92,14 @@
   ([name value]
     (->LVar name (atom value))))
 
+(defn unbound-lvar? [x]
+  (and (instance? LVar x)
+       (= ::unbound @(.value ^LVar x))))
+
 (defn unify [x y]
-  (if (and (instance? LVar x)
-           (= ::unbound @(.value ^LVar x)))
+  (if (unbound-lvar? x)
     (reset! (.value ^LVar x) y)
-    (when (instance? LVar y)
+    (when (unbound-lvar? y)
       (unify y x)))
   nil)
 
