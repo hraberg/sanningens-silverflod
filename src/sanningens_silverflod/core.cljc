@@ -80,20 +80,21 @@
         (equals [this other]
                 (lvar-equals this other))]))
 
-(defn lvar-equals [x y]
+(defn lvar-equals [^LVar x y]
   (or (= @(.value x) y)
       (and (instance? LVar y)
-           (or (= @(.value x) @(.value y))
-               x @(.value y)))))
+           (or (= @(.value x) @(.value ^LVar y))
+               x @(.value ^LVar y)))))
 
 (defn new-lvar
   ([name]
-   (new-lvar name nil))
+   (new-lvar name ::unbound))
   ([name value]
     (->LVar name (atom value))))
 
 (defn unify [^LVar x y]
-  (reset! (.value x) y)
+  (when (= ::unbound @(.value x))
+    (reset! (.value x) y))
   nil)
 
 (defn replace-lvars [entity]
