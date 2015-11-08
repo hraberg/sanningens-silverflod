@@ -64,27 +64,37 @@
                  then
                  [true]))))
 
-(declare lvar-equals)
+(declare lvar-equals lvar-value)
 
 ;; TODO: these LVars are a hack which modify the store without
 ;; asserting new facts by updating the atom. Inspired by
 ;; http://yieldprolog.sourceforge.net/
 (deftype LVar [name value]
   #?@(:cljs
-       [IEquiv
+       [IDeref
+        (-deref [this]
+               (lvar-value this))
+
+        IEquiv
         (-equiv [this other]
                 (lvar-equals this other))])
 
   #?@(:clj
-       [Object
+       [clojure.lang.IDeref
+        (deref [this]
+               (lvar-value this))
+
+        Object
         (equals [this other]
                 (lvar-equals this other))]))
 
-(defn lvar-equals [^LVar x y]
-  (or (= @(.value x) y)
-      (and (instance? LVar y)
-           (or (= @(.value x) @(.value ^LVar y))
-               (= x @(.value ^LVar y))))))
+(defn lvar-value [x]
+  (if (instance? LVar x)
+    (lvar-value @(.value ^LVar x))
+    x))
+
+(defn lvar-equals [x y]
+  (= (lvar-value x) (lvar-value y)))
 
 (defn new-lvar
   ([name]
