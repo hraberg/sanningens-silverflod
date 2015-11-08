@@ -92,9 +92,12 @@
   ([name value]
     (->LVar name (atom value))))
 
-(defn unify [^LVar x y]
-  (when (= ::unbound @(.value x))
-    (reset! (.value x) y))
+(defn unify [x y]
+  (if (and (instance? LVar x)
+           (= ::unbound @(.value ^LVar x)))
+    (reset! (.value ^LVar x) y)
+    (when (instance? LVar y)
+      (unify y x)))
   nil)
 
 (defn replace-lvars [entity]
