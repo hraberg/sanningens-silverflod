@@ -1,8 +1,8 @@
 (ns sanningens-silverflod.core-test
   (:require
-    #?(:cljs [cljs.test :as t :refer-macros [is are deftest testing]]
-       :clj  [clojure.test :as t :refer [is are deftest testing]])
-    [sanningens-silverflod.core :as chr]))
+   #?(:cljs [cljs.test :as t :refer-macros [is are deftest testing]]
+      :clj  [clojure.test :as t :refer [is are deftest testing]])
+   [sanningens-silverflod.core :as chr]))
 
 (def gcd '[[:drop [:gcd 0]]
 
@@ -153,7 +153,7 @@
        [:path "Paris" "Ulm" 700]]]
 
     #{[:example]}
-	#{[:path "London" "Berlin" 1100]
+    #{[:path "London" "Berlin" 1100]
       [:path "Berlin" "Vienna" 650]
       [:path "London" "Vienna" 1750]
       [:path "Vienna" "London" 1500]

@@ -3,9 +3,9 @@
   :url "http://github.com/hraberg/sanningens-silverflod"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.clojure/clojure "1.7.0"]
-                 [org.clojure/clojurescript "1.7.145"]
-                 [org.clojure/core.async "0.2.371"]
-                 [datascript "0.13.2"]]
+  :dependencies [[org.clojure/clojure "1.9.0-alpha10"]
+                 [org.clojure/clojurescript "1.9.93" :exclusions [org.clojure/tools.reader]]
+                 [org.clojure/core.async "0.2.385"]
+                 [datascript "0.15.2"]]
   :pedantic? :abort
-  :plugins [[lein-cljsbuild "1.1.0"]])
+  :plugins [[lein-cljsbuild "1.1.3"]])
